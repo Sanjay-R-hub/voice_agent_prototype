@@ -257,11 +257,11 @@
     <p class="pronunciation" id="pronText"></p>
     <button class="hear-btn" id="hearBtn" type="button">🔊 Hear it again</button>
 
-    <p class="prompt-line">What does it mean? Answer by voice or type it in.</p>
+    <p class="prompt-line">What does it mean? Say a short sentence, or type it in.</p>
 
     <div class="mic-wrap">
       <button class="mic-btn" id="micBtn" type="button" aria-label="Answer by voice">🎙️</button>
-      <div class="mic-label" id="micLabel">Tap to answer</div>
+      <div class="mic-label" id="micLabel">Tap, then speak — it'll wait for you to finish</div>
     </div>
 
     <div class="type-fallback" id="typeFallback">
@@ -330,10 +330,13 @@
   const synthOk = 'speechSynthesis' in window;
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognizer = null;
+  let silenceTimer = null;
+  let finalTranscript = '';
   if (SR) {
     recognizer = new SR();
     recognizer.lang = 'en-US';
-    recognizer.interimResults = false;
+    recognizer.interimResults = true;
+    recognizer.continuous = true;
     recognizer.maxAlternatives = 1;
   } else {
     typeFallback.style.display = 'flex';
@@ -396,10 +399,14 @@
 
   micBtn.addEventListener('click', () => {
     if (!recognizer || answered) return;
+    finalTranscript = '';
     micBtn.classList.add('listening');
-    micLabel.textContent = 'Listening…';
+    micLabel.textContent = 'Listening… take your time';
+    heardLine.innerHTML = '';
     try {
       recognizer.start();
+      clearTimeout(silenceTimer);
+      silenceTimer = setTimeout(() => { try { recognizer.stop(); } catch (e) {} }, 9000);
     } catch (e) {
       micBtn.classList.remove('listening');
       micLabel.textContent = 'Tap to answer';
@@ -407,11 +414,22 @@
   });
 
   if (recognizer) {
+    let interimText = '';
     recognizer.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      micBtn.classList.remove('listening');
-      micLabel.textContent = 'Tap to answer';
-      judge(transcript);
+      let interim = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const chunk = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += chunk + ' ';
+        } else {
+          interim += chunk;
+        }
+      }
+      interimText = interim;
+      heardLine.innerHTML = `Hearing: <span>"${(finalTranscript + interim).trim()}"</span>`;
+      // Reset the "you've gone quiet" timer every time new speech comes in
+      clearTimeout(silenceTimer);
+      silenceTimer = setTimeout(() => { try { recognizer.stop(); } catch (e) {} }, 1800);
     };
     recognizer.onerror = (event) => {
       micBtn.classList.remove('listening');
@@ -434,6 +452,14 @@
     };
     recognizer.onend = () => {
       micBtn.classList.remove('listening');
+      clearTimeout(silenceTimer);
+      const captured = (finalTranscript || interimText || '').trim();
+      if (captured && !answered) {
+        micLabel.textContent = 'Tap to answer';
+        judge(captured);
+      } else if (!answered) {
+        micLabel.textContent = 'Didn\'t catch anything — tap to try again';
+      }
     };
   }
 
