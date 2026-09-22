@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Say It — a spoken vocabulary tutor</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🗣️</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #EDE7DD;
+    --card: #FFFDF9;
+    --ink: #262220;
+    --muted: #8B8177;
+    --rule: #DCD3C4;
+    --green: #3F5D4E;
+    --gold: #B98A4E;
+    --brick: #A54B3F;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #1B1815;
+      --card: #242019;
+      --ink: #EDE7DD;
+      --muted: #A79E90;
+      --rule: #3A342C;
+      --green: #6E9C82;
+      --gold: #D9A768;
+      --brick: #C97465;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #1B1815;
+    --card: #242019;
+    --ink: #EDE7DD;
+    --muted: #A79E90;
+    --rule: #3A342C;
+    --green: #6E9C82;
+    --gold: #D9A768;
+    --brick: #C97465;
+  }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 18px;
+  }
+  .stage {
+    width: 100%;
+    max-width: 540px;
+  }
+  .meta-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 14px;
+    padding: 0 4px;
+  }
+  .meta-row strong { color: var(--ink); font-weight: 600; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 44px 40px 36px;
+    text-align: center;
+  }
+  .eyebrow {
+    font-size: 13px;
+    color: var(--muted);
+    margin: 0 0 18px;
+  }
+  .word {
+    font-family: 'Newsreader', Georgia, 'Iowan Old Style', serif;
+    font-weight: 500;
+    font-size: 46px;
+    line-height: 1.1;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  .pronunciation {
+    font-family: 'Newsreader', Georgia, serif;
+    font-style: italic;
+    color: var(--muted);
+    font-size: 16px;
+    margin: 8px 0 0;
+  }
+  .hear-btn {
+    background: none;
+    border: 1px solid var(--rule);
+    color: var(--ink);
+    border-radius: 999px;
+    font-family: inherit;
+    font-size: 13px;
+    padding: 7px 16px;
+    margin-top: 18px;
+    cursor: pointer;
+  }
+  .hear-btn:hover { border-color: var(--gold); }
+  .prompt-line {
+    margin: 26px 0 6px;
+    font-size: 15px;
+    color: var(--muted);
+  }
+  .mic-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 10px;
+  }
+  .mic-btn {
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    border: none;
+    background: var(--gold);
+    color: #fff;
+    font-size: 28px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: 0 0 0 0 rgba(185,138,78,0.4);
+  }
+  .mic-btn:active { transform: scale(0.96); }
+  .mic-btn.listening {
+    animation: pulse 1.1s infinite;
+  }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(185,138,78,0.45); }
+    70% { box-shadow: 0 0 0 18px rgba(185,138,78,0); }
+    100% { box-shadow: 0 0 0 0 rgba(185,138,78,0); }
+  }
+  .mic-label {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 10px;
+  }
+  .type-fallback {
+    display: none;
+    gap: 8px;
+    margin-top: 14px;
+  }
+  .type-fallback input {
+    flex: 1;
+    font-family: inherit;
+    font-size: 15px;
+    padding: 10px 12px;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    background: var(--paper);
+    color: var(--ink);
+  }
+  .type-fallback button {
+    font-family: inherit;
+    font-size: 14px;
+    padding: 10px 16px;
+    border: 1px solid var(--rule);
+    background: var(--card);
+    color: var(--ink);
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .heard {
+    margin-top: 16px;
+    font-size: 14px;
+    color: var(--muted);
+    min-height: 20px;
+  }
+  .heard span { color: var(--ink); font-style: italic; }
+  .feedback {
+    margin-top: 22px;
+    padding-top: 22px;
+    border-top: 1px solid var(--rule);
+    text-align: left;
+    display: none;
+  }
+  .feedback.show { display: block; }
+  .verdict {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 10px;
+  }
+  .verdict.correct { color: var(--green); }
+  .verdict.incorrect { color: var(--brick); }
+  .definition {
+    font-size: 15px;
+    line-height: 1.55;
+    margin: 0 0 8px;
+  }
+  .definition strong { font-weight: 600; }
+  .example {
+    font-family: 'Newsreader', Georgia, serif;
+    font-style: italic;
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.5;
+    margin: 0;
+  }
+  .next-btn {
+    margin-top: 20px;
+    width: 100%;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 500;
+    padding: 13px;
+    background: var(--green);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .next-btn:hover { opacity: 0.92; }
+  .done-card { text-align: center; }
+  .done-card .word { font-size: 34px; }
+  .footnote {
+    text-align: center;
+    font-size: 12.5px;
+    color: var(--muted);
+    margin-top: 18px;
+    line-height: 1.5;
+  }
+  @media (max-width: 480px) {
+    .card { padding: 34px 22px 28px; }
+    .word { font-size: 36px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="meta-row">
+    <span id="progressLabel">Word 1 of 12</span>
+    <span>Score: <strong id="scoreLabel">0</strong></span>
+  </div>
+
+  <div class="card" id="card">
+    <p class="eyebrow" id="eyebrow">Listen, then answer</p>
+    <h1 class="word" id="wordText">—</h1>
+    <p class="pronunciation" id="pronText"></p>
+    <button class="hear-btn" id="hearBtn" type="button">🔊 Hear it again</button>
+
+    <p class="prompt-line">What does it mean? Answer by voice or type it in.</p>
+
+    <div class="mic-wrap">
+      <button class="mic-btn" id="micBtn" type="button" aria-label="Answer by voice">🎙️</button>
+      <div class="mic-label" id="micLabel">Tap to answer</div>
+    </div>
+
+    <div class="type-fallback" id="typeFallback">
+      <input type="text" id="typeInput" placeholder="Type your answer…" autocomplete="off">
+      <button id="typeSubmit" type="button">Check</button>
+    </div>
+
+    <div class="heard" id="heardLine"></div>
+
+    <div class="feedback" id="feedback">
+      <div class="verdict" id="verdict"></div>
+      <p class="definition" id="defText"></p>
+      <p class="example" id="exampleText"></p>
+      <button class="next-btn" id="nextBtn" type="button">Next word</button>
+    </div>
+  </div>
+
+  <p class="footnote">Prototype voice tutor — uses your browser's built-in speech recognition &amp; text-to-speech. Works best in Chrome. If voice input isn't available, use the text box instead.</p>
+</div>
+
+<script>
+(function () {
+  const WORDS = [
+    { word: "ephemeral", pron: "ih-FEM-er-uhl", def: "lasting for a very short time", keywords: ["short", "brief", "temporary", "fleeting", "quick"], example: "The rainbow was ephemeral, gone within a minute." },
+    { word: "meticulous", pron: "muh-TIK-yuh-luhs", def: "showing great attention to detail; very careful and precise", keywords: ["careful", "detail", "precise", "thorough", "exact"], example: "She kept meticulous records of every transaction." },
+    { word: "candid", pron: "KAN-did", def: "truthful and straightforward; frank", keywords: ["honest", "frank", "truthful", "direct", "open"], example: "He gave a candid answer, even though it wasn't flattering." },
+    { word: "ambiguous", pron: "am-BIG-yoo-uhs", def: "open to more than one interpretation; not clear", keywords: ["unclear", "vague", "uncertain", "confusing", "multiple"], example: "The instructions were ambiguous, so everyone read them differently." },
+    { word: "resilient", pron: "ri-ZIL-yuhnt", def: "able to recover quickly from difficulties", keywords: ["recover", "tough", "bounce", "strong", "adapt"], example: "The team stayed resilient after a tough quarter." },
+    { word: "pragmatic", pron: "prag-MAT-ik", def: "dealing with things sensibly and realistically", keywords: ["practical", "realistic", "sensible", "logical"], example: "We need a pragmatic plan, not just a bold vision." },
+    { word: "verbose", pron: "vur-BOHS", def: "using more words than needed; wordy", keywords: ["wordy", "long", "talkative", "rambling"], example: "His verbose email could have been three lines." },
+    { word: "skeptical", pron: "SKEP-ti-kuhl", def: "having doubts; not easily convinced", keywords: ["doubt", "unsure", "questioning", "distrust"], example: "She was skeptical of the too-good-to-be-true offer." },
+    { word: "novice", pron: "NOV-iss", def: "a person new to a skill or activity; a beginner", keywords: ["beginner", "new", "inexperienced", "learner"], example: "As a novice cook, he still measures everything twice." },
+    { word: "tedious", pron: "TEE-dee-uhs", def: "too long, slow, or dull; tiresome", keywords: ["boring", "dull", "slow", "tiresome", "long"], example: "Filing the reports was a tedious weekly task." },
+    { word: "candor", pron: "KAN-der", def: "the quality of being open and honest", keywords: ["honesty", "frankness", "openness", "sincerity"], example: "I appreciated her candor during the feedback session." },
+    { word: "concise", pron: "kuhn-SYSS", def: "giving information clearly in few words", keywords: ["brief", "short", "clear", "compact", "succinct"], example: "Keep the summary concise — three sentences, max." }
+  ];
+
+  let order = [...WORDS.keys()];
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  let idx = 0;
+  let score = 0;
+  let answered = false;
+
+  const wordText = document.getElementById('wordText');
+  const pronText = document.getElementById('pronText');
+  const progressLabel = document.getElementById('progressLabel');
+  const scoreLabel = document.getElementById('scoreLabel');
+  const micBtn = document.getElementById('micBtn');
+  const micLabel = document.getElementById('micLabel');
+  const heardLine = document.getElementById('heardLine');
+  const feedback = document.getElementById('feedback');
+  const verdict = document.getElementById('verdict');
+  const defText = document.getElementById('defText');
+  const exampleText = document.getElementById('exampleText');
+  const nextBtn = document.getElementById('nextBtn');
+  const hearBtn = document.getElementById('hearBtn');
+  const typeFallback = document.getElementById('typeFallback');
+  const typeInput = document.getElementById('typeInput');
+  const typeSubmit = document.getElementById('typeSubmit');
+  const card = document.getElementById('card');
+  const eyebrow = document.getElementById('eyebrow');
+
+  const synthOk = 'speechSynthesis' in window;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognizer = null;
+  if (SR) {
+    recognizer = new SR();
+    recognizer.lang = 'en-US';
+    recognizer.interimResults = false;
+    recognizer.maxAlternatives = 1;
+  } else {
+    typeFallback.style.display = 'flex';
+    micBtn.style.display = 'none';
+    micLabel.textContent = 'Voice input not available in this browser — type your answer';
+  }
+
+  function speak(text) {
+    if (!synthOk) return;
+    try {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.rate = 0.95;
+      window.speechSynthesis.speak(u);
+    } catch (e) { /* speech unavailable, fail silently */ }
+  }
+
+  function loadWord() {
+    answered = false;
+    const w = WORDS[order[idx]];
+    wordText.textContent = w.word;
+    pronText.textContent = w.pron;
+    progressLabel.textContent = `Word ${idx + 1} of ${WORDS.length}`;
+    heardLine.textContent = '';
+    feedback.classList.remove('show');
+    typeInput.value = '';
+    eyebrow.textContent = 'Listen, then answer';
+    speak(`Here's your word: ${w.word}.`);
+  }
+
+  function normalize(s) {
+    return s.toLowerCase().replace(/[^a-z\s]/g, '').trim();
+  }
+
+  function judge(rawAnswer) {
+    if (answered) return;
+    answered = true;
+    const w = WORDS[order[idx]];
+    const norm = normalize(rawAnswer);
+    heardLine.innerHTML = `You said: <span>"${rawAnswer}"</span>`;
+    const hitCount = w.keywords.filter(k => norm.includes(k)).length;
+    const isCorrect = hitCount >= 1 && norm.length > 2;
+
+    if (isCorrect) {
+      score++;
+      scoreLabel.textContent = score;
+      verdict.className = 'verdict correct';
+      verdict.textContent = '✓ Nice — that\'s right';
+      speak('Nice, that\'s right.');
+    } else {
+      verdict.className = 'verdict incorrect';
+      verdict.textContent = '✗ Not quite';
+      speak(`Not quite. ${w.word} means ${w.def}.`);
+    }
+    defText.innerHTML = `<strong>${w.word}</strong> — ${w.def}`;
+    exampleText.textContent = `"${w.example}"`;
+    feedback.classList.add('show');
+    nextBtn.focus();
+  }
+
+  micBtn.addEventListener('click', () => {
+    if (!recognizer || answered) return;
+    micBtn.classList.add('listening');
+    micLabel.textContent = 'Listening…';
+    try {
+      recognizer.start();
+    } catch (e) {
+      micBtn.classList.remove('listening');
+      micLabel.textContent = 'Tap to answer';
+    }
+  });
+
+  if (recognizer) {
+    recognizer.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      micBtn.classList.remove('listening');
+      micLabel.textContent = 'Tap to answer';
+      judge(transcript);
+    };
+    recognizer.onerror = (event) => {
+      micBtn.classList.remove('listening');
+      const err = event && event.error;
+      if (err === 'not-allowed' || err === 'service-not-allowed') {
+        micLabel.textContent = 'Microphone access blocked — allow it in your browser\'s address-bar permissions, then tap the mic again';
+        typeFallback.style.display = 'flex';
+      } else if (err === 'no-speech') {
+        micLabel.textContent = 'Didn\'t hear anything — tap to try again';
+      } else if (err === 'audio-capture') {
+        micLabel.textContent = 'No microphone found — check your device, or type your answer below';
+        typeFallback.style.display = 'flex';
+      } else if (err === 'network') {
+        micLabel.textContent = 'Voice recognition needs an internet connection — tap to retry, or type below';
+        typeFallback.style.display = 'flex';
+      } else {
+        micLabel.textContent = `Voice input didn't work here (${err || 'unknown error'}) — type your answer below`;
+        typeFallback.style.display = 'flex';
+      }
+    };
+    recognizer.onend = () => {
+      micBtn.classList.remove('listening');
+    };
+  }
+
+  typeSubmit.addEventListener('click', () => {
+    if (typeInput.value.trim()) judge(typeInput.value.trim());
+  });
+  typeInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && typeInput.value.trim()) judge(typeInput.value.trim());
+  });
+
+  hearBtn.addEventListener('click', () => {
+    const w = WORDS[order[idx]];
+    speak(w.word);
+  });
+
+  nextBtn.addEventListener('click', () => {
+    idx++;
+    if (idx >= WORDS.length) {
+      card.innerHTML = `
+        <p class="eyebrow">Session complete</p>
+        <h1 class="word done-card">${score} / ${WORDS.length}</h1>
+        <p class="prompt-line" style="margin-top:14px;">words answered correctly. Refresh the page to practice again with a new shuffle.</p>
+      `;
+      speak(`Session complete. You got ${score} out of ${WORDS.length}.`);
+      return;
+    }
+    loadWord();
+  });
+
+  loadWord();
+})();
+</script>
+
+</body>
+</html>
